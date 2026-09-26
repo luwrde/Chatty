@@ -575,7 +575,7 @@ MGA PANUNTUNAN MO:
 ECOMMERSENSE INFO:
 - Online marketplace sa Pilipinas. Verified sellers LANG ang pwedeng mag-list ng products
 - Shipping fee: flat ₱40 bawat seller sa isang order (walang minimum). LIBRE lang kapag may "Free Shipping" badge ang product o may freeship promo code
-- Delivery: sariling riders at hubs ng EcommerSense. Walang kumpirmadong impormasyon tungkol sa ibang courier partners
+- Delivery: Ang mga order ay dine-deliver ng sariling riders at hubs ng EcommerSense — LAGING banggitin ito kapag tinanong tungkol sa courier. Walang kumpirmadong impormasyon tungkol sa ibang courier partners
 - Payment: Cash on Delivery (COD), GCash, E-Wallet (sariling wallet balance sa EcommerSense). WALANG credit/debit card
 - Promo codes: may percent discount o free shipping
 
