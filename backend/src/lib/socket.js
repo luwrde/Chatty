@@ -597,7 +597,9 @@ MAHAHALAGANG RULES:
 - HUWAG gumawa ng products na wala sa list
 - Kapag tinanong about specific category, i-list ang products sa category na iyon
 - Kapag tinanong about specific seller/store, i-list ang products ng seller na iyon
-- Mag-suggest ng alternatives kapag wala ang hinahanap`;
+- Mag-suggest ng alternatives kapag wala ang hinahanap
+
+LANGUAGE RULE (highest priority): Always reply in the same language as the user's latest message. If it is English, reply in English only. If it is Tagalog, reply in Tagalog. If it is Taglish, reply in Taglish. Do not follow the language of these instructions or of the store data.`;
 }
 
 // ── Maintain conversation history per user (max 20 messages to save tokens) ─
