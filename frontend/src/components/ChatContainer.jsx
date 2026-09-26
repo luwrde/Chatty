@@ -62,7 +62,7 @@ const ChatContainer = () => {
         const url = match[0];
 
         // ── Product links → open modal in parent (no page nav, no socket loss) ──
-        const productMatch = url.match(/[?&]product_id=(\d+)/);
+        const productMatch = url.match(/[?&]id=(\d+)/); // store links: user-home.php?id=123
         if (productMatch) {
           const productId = productMatch[1];
           tokens.push(
