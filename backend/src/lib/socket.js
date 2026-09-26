@@ -131,6 +131,9 @@ function hasPhrase(text, phrase) {
 // false = only greeting/thanks are answered locally; FAQ questions go to Groq (the system prompt has the info)
 const LOCAL_FAQ = false;
 
+// false = product list / price-range questions also go to Groq (the system prompt has all products and prices)
+const LOCAL_PRODUCT_SHORTCUTS = false;
+
 const GREETING_TRIGGERS = [
   "hi","hello","hey","hoy","heya","howdy","sup","wassup","yo",
   "kumusta","kamusta","musta","oy","helo","hellow","good morning",
@@ -559,7 +562,7 @@ MGA PANUNTUNAN MO:
 ECOMMERSENSE INFO:
 - Online marketplace na may verified sellers sa Pilipinas
 - Shipping: Standard 3-5 days, Express 1-2 days (may dagdag na bayad)
-- FREE shipping sa orders over ₱1,000
+- Shipping fee: flat ₱40 bawat seller sa isang order (walang minimum). LIBRE lang kapag may "Free Shipping" badge ang product o may freeship promo code
 - Payment: GCash, Credit/Debit Card, Cash on Delivery (COD)
 - Return: 7 days na may original receipt at photo proof
 - Refund: 3-5 business days
@@ -598,6 +601,8 @@ MAHAHALAGANG RULES:
 - Kapag tinanong about specific category, i-list ang products sa category na iyon
 - Kapag tinanong about specific seller/store, i-list ang products ng seller na iyon
 - Mag-suggest ng alternatives kapag wala ang hinahanap
+- HUWAG magbigay ng presyo, fee, oras ng delivery o policy na wala sa data o sa impormasyon sa itaas. Kung wala, sabihin na hindi mo alam at i-suggest na tingnan sa checkout o i-type ang "admin"
+- Kapag humingi ng recommendation o regalo, mag-recommend agad ng 3-5 products mula sa data (may Link), saka mag-follow-up question
 
 LANGUAGE RULE (highest priority): Always reply in the same language as the user's latest message. If it is English, reply in English only. If it is Tagalog, reply in Tagalog. If it is Taglish, reply in Taglish. Do not follow the language of these instructions or of the store data.`;
 }
@@ -736,7 +741,7 @@ io.on("connection", (socket) => {
     }
 
     // ── ALL PRODUCTS ──────────────────────────────────────────────────────
-    if (isAskingForAllProducts(text)) {
+    if (LOCAL_PRODUCT_SHORTCUTS && isAskingForAllProducts(text)) {
       if (senderSocketId) {
         io.to(senderSocketId).emit("botTyping", true);
         const products = await getEcommerceProducts();
@@ -749,7 +754,7 @@ io.on("connection", (socket) => {
     }
 
     // ── PRICE RANGE ───────────────────────────────────────────────────────
-    if (isAskingForPriceRange(text)) {
+    if (LOCAL_PRODUCT_SHORTCUTS && isAskingForPriceRange(text)) {
       if (senderSocketId) {
         io.to(senderSocketId).emit("botTyping", true);
         const products = await getEcommerceProducts();
