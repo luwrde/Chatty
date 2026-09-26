@@ -118,6 +118,14 @@ function detectLanguage(text) {
   return "tl"; // default to Tagalog
 }
 
+// True only for plain English: at least 2 English words and no Tagalog words (whole-word match)
+function isClearlyEnglish(text) {
+  const words = text.toLowerCase().split(/\s+/).map(w => w.replace(/[^a-z]/g, "")).filter(Boolean);
+  const englishCount = words.filter(w => ENGLISH_WORDS.includes(w)).length;
+  const tagalogCount = words.filter(w => TAGALOG_WORDS.includes(w)).length;
+  return englishCount >= 2 && tagalogCount === 0;
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // ── LOCAL HANDLERS — Zero API quota used ──────────────────────────────────
 // ══════════════════════════════════════════════════════════════════════════════
@@ -610,7 +618,7 @@ MAHAHALAGANG RULES:
 - Mag-suggest ng alternatives kapag wala ang hinahanap
 - HUWAG magbigay ng presyo, fee, oras ng delivery o policy na wala sa data o sa impormasyon sa itaas. Kung wala, sabihin na hindi mo alam at i-suggest na tingnan sa checkout o i-type ang "admin"
 - Kapag humingi ng recommendation o regalo, mag-recommend agad ng 3-5 products mula sa data (may Link), saka mag-follow-up question
-- Tanong tungkol sa returns, warranty, delivery time o chat support hours: sabihin na WALA kang kumpirmadong impormasyon, at i-suggest na i-type ang "admin" o tingnan ang order page
+- Tanong tungkol sa returns, warranty, delivery time o chat support hours: sabihin, sa wika ng user, na wala kang kumpirmadong impormasyon, at i-suggest na i-type ang "admin" o tingnan ang order page
 - "below / under / mas mababa sa X" = MAS MABABA LANG sa X. HUWAG isama ang products na eksaktong X ang presyo
 - Isulat ang product links bilang plain URL LANG — HUWAG gumamit ng markdown gaya ng [Link](url)
 
@@ -661,9 +669,14 @@ async function askGroq(userId, userMessage) {
       ];
     }
 
+    // Plain English questions get a reply-language hint; history keeps the raw message
+    const messagesToSend = isClearlyEnglish(userMessage)
+      ? [...session.messages.slice(0, -1), { role: "user", content: userMessage + "\n\n(Reply in English.)" }]
+      : session.messages;
+
     const response = await groq.chat.completions.create({
       model:       GROQ_MODEL,
-      messages:    session.messages,
+      messages:    messagesToSend,
       max_completion_tokens: 1024,
       reasoning_effort:  "low",
       include_reasoning: false,
