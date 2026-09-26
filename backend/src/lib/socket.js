@@ -21,6 +21,7 @@ const io = new Server(server, {
 // Get your free API key at: https://console.groq.com
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const GROQ_MODEL = "openai/gpt-oss-120b"; // Smart + fast + free
+const GROQ_FALLBACK_MODEL = "openai/gpt-oss-20b"; // tried once when GROQ_MODEL hits a 429 limit
 
 const userSocketMap   = {};
 const supportRequests = [];
@@ -644,7 +645,12 @@ function getOrCreateHistory(userId, systemPrompt) {
   return chatHistories[userId];
 }
 
+function isRateLimitError(err) {
+  return err?.status === 429 || String(err?.message).includes("429");
+}
+
 async function askGroq(userId, userMessage) {
+  let session;
   try {
     // Rate limit: 2 seconds between calls per user
     const now = Date.now();
@@ -655,7 +661,7 @@ async function askGroq(userId, userMessage) {
 
     // Build system prompt with fresh product data
     const systemPrompt = await buildSystemPrompt();
-    const session = getOrCreateHistory(userId, systemPrompt);
+    session = getOrCreateHistory(userId, systemPrompt);
 
     // Add user message to history
     session.messages.push({ role: "user", content: userMessage });
@@ -674,14 +680,24 @@ async function askGroq(userId, userMessage) {
       ? [...session.messages.slice(0, -1), { role: "user", content: userMessage + "\n\n(Reply in English.)" }]
       : session.messages;
 
-    const response = await groq.chat.completions.create({
-      model:       GROQ_MODEL,
+    const request = {
       messages:    messagesToSend,
       max_completion_tokens: 1024,
       reasoning_effort:  "low",
       include_reasoning: false,
       temperature: 0.7,
-    });
+    };
+
+    // On a 429 (rate or daily token limit), retry ONCE with the fallback model
+    let model = GROQ_MODEL;
+    let response;
+    try {
+      response = await groq.chat.completions.create({ model, ...request });
+    } catch (err) {
+      if (!isRateLimitError(err)) throw err;
+      model = GROQ_FALLBACK_MODEL;
+      response = await groq.chat.completions.create({ model, ...request });
+    }
 
     const reply = response.choices[0]?.message?.content?.trim();
 
@@ -690,12 +706,14 @@ async function askGroq(userId, userMessage) {
       session.messages.push({ role: "assistant", content: reply });
     }
 
-    console.log("✅ Groq replied successfully");
+    console.log(`✅ Groq replied successfully (${model})`);
     return reply || null;
   } catch (err) {
     console.error("Groq error:", err.message);
-    if (err.message.includes("429")) {
-      return "⏳ Sandali lang, maraming tanong ngayon. Subukan ulit after 1 minute. 😊";
+    // Drop the unanswered user message so it isn't sent twice next time
+    if (session?.messages.at(-1)?.role === "user") session.messages.pop();
+    if (isRateLimitError(err)) {
+      return "⏳ Naabot na ang limit ng AI ngayon. Subukan ulit mamaya, o i-type ang 'admin' para sa tulong.";
     }
     return null;
   }
