@@ -22,6 +22,7 @@ const io = new Server(server, {
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const GROQ_MODEL = "openai/gpt-oss-120b"; // Smart + fast + free
 const GROQ_FALLBACK_MODEL = "openai/gpt-oss-20b"; // tried once when GROQ_MODEL hits a 429 limit
+const GROQ_VISION_MODEL = "qwen/qwen3.8-27b"; // multimodal (preview), only for photos; the text models can't see images
 
 const userSocketMap   = {};
 const supportRequests = [];
@@ -627,6 +628,7 @@ MAHAHALAGANG RULES:
 - Tanong tungkol sa returns, warranty, delivery time o chat support hours: sabihin, sa wika ng user, na wala kang kumpirmadong impormasyon, at i-suggest na i-type ang "admin" o tingnan ang order page
 - "below / under / mas mababa sa X" = MAS MABABA LANG sa X. HUWAG isama ang products na eksaktong X ang presyo
 - Isulat ang product links bilang plain URL LANG — HUWAG gumamit ng markdown gaya ng [Link](url)
+- Kapag may PHOTO ang user: sabihin kung ano ito (Tagalog at English, hal. "Talong (eggplant)"). Kung hindi sigurado, sabihin "mukhang ..." at magtanong para ma-confirm; kung malabo ang photo, sabihin ito. Kung may katugmang product sa data, i-recommend ito kasama ang plain URL link; kung wala, sabihin na walang ganitong product ang store. HUWAG mag-imbento ng products, presyo o stock
 
 LANGUAGE RULE (highest priority): Always reply in the same language as the user's latest message. If it is English, reply in English only. If it is Tagalog, reply in Tagalog. If it is Taglish, reply in Taglish. Do not follow the language of these instructions or of the store data.`;
 }
@@ -727,6 +729,40 @@ async function askGroq(userId, userMessage) {
 // Same bot logic as the socket chat (local greeting/thanks first, then Groq), for HTTP callers like the store widget
 export async function getBotReply(userId, text) {
   return (await getLocalReply(text)) ?? (await askGroq(userId, text)) ?? getTechnicalIssueReply();
+}
+
+const VISION_ERROR_REPLY = "Hindi ko mabasa ang larawan ngayon. Subukan ulit mamaya o mag-type ng tanong.";
+
+// Photo questions from the store widget. No fallback to the text models: they can't see images.
+export async function askGroqVision(userId, text, imageDataUrl) {
+  try {
+    const systemPrompt = await buildSystemPrompt();
+    const response = await groq.chat.completions.create({
+      model: GROQ_VISION_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: [
+          { type: "text", text: isClearlyEnglish(text) ? text + "\n\n(Reply in English.)" : text },
+          { type: "image_url", image_url: { url: imageDataUrl } },
+        ] },
+      ],
+      max_completion_tokens: 1024,
+      reasoning_effort: "none",
+    });
+    const reply = response.choices[0]?.message?.content?.trim();
+    if (!reply) return VISION_ERROR_REPLY;
+
+    // History gets a text marker instead of the image, so follow-up text questions keep the context
+    const session = getOrCreateHistory(userId, systemPrompt);
+    session.messages.push({ role: "user", content: `[user sent a photo] ${text}` }, { role: "assistant", content: reply });
+    if (session.messages.length > 21) session.messages = [session.messages[0], ...session.messages.slice(-20)];
+
+    console.log(`✅ Groq vision replied successfully (${GROQ_VISION_MODEL})`);
+    return reply;
+  } catch (err) {
+    console.error("Groq vision error:", err.message);
+    return VISION_ERROR_REPLY;
+  }
 }
 
 // ── MAIN SOCKET ────────────────────────────────────────────────────────────
