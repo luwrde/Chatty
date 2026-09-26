@@ -8,6 +8,7 @@ import authRoutes    from "./routes/auth.route.js";
 import messageRoutes from "./routes/message.route.js";
 import userRoutes    from "./routes/user.route.js";
 import embedRoutes   from "./routes/embed.route.js"; // ← NEW
+import aiRoutes      from "./routes/ai.route.js";
 import { app, server } from "./lib/socket.js";
 
 dotenv.config();
@@ -19,6 +20,10 @@ const ALLOWED_ORIGINS = [
   "http://localhost",
   "http://localhost:8080",
 ];
+
+// Store chat widget: registered before the global CORS/JSON middleware because it has
+// its own CORS (no cookies), body size limit and rate limit
+app.use("/api/ai",       aiRoutes);
 
 app.use(cors({
   origin: (origin, callback) => {

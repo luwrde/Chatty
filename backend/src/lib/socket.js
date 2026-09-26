@@ -58,6 +58,11 @@ function getTimeGreeting() {
   return "Good evening";
 }
 
+// Shown when the bot has no reply (socket chat and getBotReply)
+function getTechnicalIssueReply() {
+  return `${getTimeGreeting()}! 😊 Pasensya, may technical issue kami ngayon. Subukan ulit o i-type ang 'admin' para sa tulong!`;
+}
+
 // ── Emit bot message (socket only — hindi nisse-save sa DB para mabura sa refresh) ──
 function emitBotMessage(senderSocketId, senderId, text) {
   io.to(senderSocketId).emit("newMessage", {
@@ -719,6 +724,11 @@ async function askGroq(userId, userMessage) {
   }
 }
 
+// Same bot logic as the socket chat (local greeting/thanks first, then Groq), for HTTP callers like the store widget
+export async function getBotReply(userId, text) {
+  return (await getLocalReply(text)) ?? (await askGroq(userId, text)) ?? getTechnicalIssueReply();
+}
+
 // ── MAIN SOCKET ────────────────────────────────────────────────────────────
 io.on("connection", (socket) => {
   console.log("✅ New client connected:", socket.id);
@@ -836,10 +846,7 @@ io.on("connection", (socket) => {
         if (reply) {
           emitBotMessage(senderSocketId, senderId, reply);
         } else {
-          const greeting = getTimeGreeting();
-          emitBotMessage(senderSocketId, senderId,
-            `${greeting}! 😊 Pasensya, may technical issue kami ngayon. Subukan ulit o i-type ang 'admin' para sa tulong!`
-          );
+          emitBotMessage(senderSocketId, senderId, getTechnicalIssueReply());
         }
       } catch (err) {
         io.to(senderSocketId).emit("botTyping", false);
