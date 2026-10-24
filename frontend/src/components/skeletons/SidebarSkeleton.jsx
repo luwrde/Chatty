@@ -6,24 +6,26 @@ const SidebarSkeleton = () => {
 
   return (
     <aside
-      className="h-full w-20 lg:w-72 border-r border-base-300 
-    flex flex-col transition-all duration-200"
+      className="h-full w-[4.5rem] lg:w-72 shrink-0 flex flex-col overflow-hidden rounded-box
+    border border-base-300/60 bg-base-100 shadow-soft transition-all duration-200"
     >
       {/* Header */}
-      <div className="border-b border-base-300 w-full p-5">
-        <div className="flex items-center gap-2">
-          <Users className="w-6 h-6" />
-          <span className="font-medium hidden lg:block">Contacts</span>
+      <div className="border-b border-base-300/70 w-full p-3 lg:p-5">
+        <div className="flex items-center justify-center lg:justify-start gap-2">
+          <span className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary">
+            <Users className="w-5 h-5" />
+          </span>
+          <span className="font-semibold hidden lg:block">Contacts</span>
         </div>
       </div>
 
       {/* Skeleton Contacts */}
-      <div className="overflow-y-auto w-full py-3">
+      <div className="overflow-y-auto w-full p-2 space-y-1">
         {skeletonContacts.map((_, idx) => (
-          <div key={idx} className="w-full p-3 flex items-center gap-3">
+          <div key={idx} className="w-full p-2 flex items-center gap-3">
             {/* Avatar skeleton */}
             <div className="relative mx-auto lg:mx-0">
-              <div className="skeleton size-12 rounded-full" />
+              <div className="skeleton size-11 rounded-full" />
             </div>
 
             {/* User info skeleton - only visible on larger screens */}

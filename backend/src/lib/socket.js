@@ -34,7 +34,7 @@ const lastGroqCall    = {};
 export const getReceiverSocketId = (receiverId) => userSocketMap[receiverId];
 
 // ── Fetch FULL ecommerce dataset (products, categories, sellers, top items) ─
-async function getEcommerceData() {
+export async function getEcommerceData() {
   try {
     const res  = await fetch("http://localhost/ecommerce/get-products-for-bot.php");
     const data = await res.json();

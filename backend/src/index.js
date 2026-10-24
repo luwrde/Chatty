@@ -9,6 +9,7 @@ import messageRoutes from "./routes/message.route.js";
 import userRoutes    from "./routes/user.route.js";
 import embedRoutes   from "./routes/embed.route.js"; // ← NEW
 import aiRoutes      from "./routes/ai.route.js";
+import productRoutes from "./routes/product.route.js";
 import { app, server } from "./lib/socket.js";
 
 dotenv.config();
@@ -43,6 +44,7 @@ app.use("/api/auth",     authRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/user",     userRoutes);
 app.use("/api/embed",    embedRoutes); // ← NEW
+app.use("/api/products", productRoutes); // read-only product details for the chat's product cards
 
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));

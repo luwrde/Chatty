@@ -4,11 +4,42 @@ import daisyui from "daisyui";
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
-    extend: {},
+    extend: {
+      boxShadow: {
+        // Soft, primary-tinted shadow for cards (follows the active daisyUI theme)
+        soft: "0 1px 2px 0 rgb(0 0 0 / 0.04), 0 12px 32px -16px oklch(var(--p) / 0.35)",
+      },
+    },
   },
   plugins: [daisyui],
   daisyui: {
     themes: [
+      // Default theme (first = used when no data-theme is set): store-assistant look
+      {
+        lavender: {
+          "primary": "#6c47ff",
+          "primary-content": "#ffffff",
+          "secondary": "#8b5cf6",
+          "secondary-content": "#ffffff",
+          "accent": "#f472b6",
+          "accent-content": "#ffffff",
+          "neutral": "#2a2342",
+          "neutral-content": "#f5f3ff",
+          "base-100": "#ffffff",
+          "base-200": "#f5f3ff",
+          "base-300": "#e7e1fb",
+          "base-content": "#1f1a37",
+          "info": "#3b82f6",
+          "success": "#22c55e",
+          "warning": "#f59e0b",
+          "error": "#ef4444",
+          "--rounded-box": "1.25rem",
+          "--rounded-btn": "0.75rem",
+          "--rounded-badge": "1.9rem",
+          "--animation-btn": "0.2s",
+          "--btn-focus-scale": "0.97",
+        },
+      },
       "light",
       "dark",
       "cupcake",

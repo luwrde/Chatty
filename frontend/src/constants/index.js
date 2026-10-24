@@ -1,4 +1,7 @@
+export const BOT_DISPLAY_NAME = "EcommerSense AI";
+
 export const THEMES = [
+  "lavender",
   "light",
   "dark",
   "cupcake",

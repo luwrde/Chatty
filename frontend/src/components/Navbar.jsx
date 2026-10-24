@@ -4,30 +4,30 @@ import { useAuthStore } from "../store/useAuthStore.js";
 
 const Navbar = () => {
     const { logout, authUser } = useAuthStore();
-    
+
     // Check if user is admin
     const isAdmin = authUser?.email === "admin@gmail.com" || authUser?.role === "admin";
 
   return (
     <header
-     className="bg-base-100 border-b border-base-300 fixed w-full top-0 z-40
-     backdrop-blur-lg bg-base-100/80"
+     className="bg-base-100 border-b border-base-300/70 fixed w-full top-0 z-40
+     backdrop-blur-lg bg-base-100/80 shadow-sm"
      >
       <div className="container mx-auto px-4 h-16">
         <div className="flex items-center justify-between h-full">
           <Link to= "/" className="flex items-center gap-2.5 hover:opacity-80 transition-all">
-          <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center">
-          <MessageSquare className="w-5 h-5 text-primary" />
+          <div className="size-9 rounded-xl bg-primary text-primary-content flex items-center justify-center shadow-soft">
+          <MessageSquare className="w-5 h-5" />
           </div>
           <h1 className="text-lg font-bold">Chatty</h1>
           </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           {/* ADMIN LINK - Only show for admin users */}
           {isAdmin && (
             <Link
               to={"/admin"}
-              className="btn btn-sm gap-2 transition-colors btn-outline btn-primary"
+              className="btn btn-sm gap-2 rounded-full transition-colors btn-outline btn-primary"
               >
                 <Shield className="w-4 h-4" />
                 <span className="hidden sm:inline">Admin</span>
@@ -36,7 +36,7 @@ const Navbar = () => {
 
           <Link
             to={"/settings"}
-            className="btn btn-sm gap-2 transition-colors"
+            className="btn btn-sm btn-ghost gap-2 rounded-full transition-colors"
             >
               <Settings className="w-4 h-4" />
               <span className="hidden sm:inline">Settings</span>
@@ -44,12 +44,12 @@ const Navbar = () => {
 
             { authUser && (
               <>
-              <Link to={"/profile"} className="btn btn-sm gap-2">
+              <Link to={"/profile"} className="btn btn-sm btn-ghost gap-2 rounded-full">
               <User className="size-5" />
               <span className="hidden sm:inline">Profile</span>
               </Link>
-              
-              <button className="flex gap-2 items-center" onClick={logout}>
+
+              <button className="btn btn-sm btn-ghost gap-2 rounded-full" onClick={logout}>
                 <LogOut className="size-5" />
                 <span className="hidden sm:inline">Logout</span>
                 </button>
