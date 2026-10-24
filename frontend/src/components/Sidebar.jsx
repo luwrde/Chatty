@@ -7,7 +7,8 @@ import { BOT_DISPLAY_NAME } from "../constants";
 
 const isEmbedMode = () => new URLSearchParams(window.location.search).get("embed") === "1";
 
-const Sidebar = () => {
+// inDrawer: rendered inside the Messages drawer (full list at every width); onSelectUser: called after a pick
+const Sidebar = ({ inDrawer = false, onSelectUser }) => {
   const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
@@ -29,21 +30,30 @@ const Sidebar = () => {
     ? users.filter((user) => onlineUsers?.includes(user._id))
     : users;
 
-  if (isUsersLoading) return <SidebarSkeleton />;
+  // Side panel: avatars only below lg. Drawer: the full list at every width.
+  const layout = (drawerClasses, panelClasses) => (inDrawer ? drawerClasses : panelClasses);
+
+  if (isUsersLoading) {
+    return inDrawer ? (
+      <div className="flex justify-center p-8"><span className="loading loading-spinner text-primary" /></div>
+    ) : (
+      <SidebarSkeleton />
+    );
+  }
 
   // In embed mode, hide sidebar completely
   if (embedMode) return null;
 
   return (
-    <aside className="h-full w-[4.5rem] lg:w-72 shrink-0 flex flex-col overflow-hidden rounded-box border border-base-300/60 bg-base-100 shadow-soft transition-all duration-200">
-      <div className="border-b border-base-300/70 w-full p-3 lg:p-5">
-        <div className="flex items-center justify-center lg:justify-start gap-2">
+    <aside className={layout("h-full w-full flex flex-col overflow-hidden", "h-full w-[4.5rem] lg:w-72 shrink-0 flex flex-col overflow-hidden rounded-box border border-base-300/60 bg-base-100 shadow-soft transition-all duration-200")}>
+      <div className={`border-b border-base-300/70 w-full ${layout("p-4", "p-3 lg:p-5")}`}>
+        <div className={`flex items-center gap-2 ${layout("justify-start", "justify-center lg:justify-start")}`}>
           <span className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary">
             <Users className="size-5" />
           </span>
-          <span className="font-semibold hidden lg:block">Contacts</span>
+          <span className={`font-semibold ${layout("block", "hidden lg:block")}`}>Contacts</span>
         </div>
-        <div className="mt-3 hidden lg:flex items-center gap-2">
+        <div className={`mt-3 items-center gap-2 ${layout("flex", "hidden lg:flex")}`}>
           <label className="cursor-pointer flex items-center gap-2">
             <input
               type="checkbox"
@@ -61,14 +71,17 @@ const Sidebar = () => {
         {filteredUsers.map((user) => (
           <button
             key={user._id}
-            onClick={() => setSelectedUser(user)}
+            onClick={() => {
+              setSelectedUser(user);
+              onSelectUser?.();
+            }}
             className={`
               w-full p-2 flex items-center gap-3 rounded-xl
               transition-colors
               ${selectedUser?._id === user._id ? "bg-primary/10 ring-1 ring-primary/20" : "hover:bg-base-200"}
             `}
           >
-            <div className="relative mx-auto lg:mx-0 shrink-0">
+            <div className={`relative shrink-0 ${layout("", "mx-auto lg:mx-0")}`}>
               <img
                 src={user.profilePic || "/avatar.png"}
                 alt={user.fullName}
@@ -87,7 +100,7 @@ const Sidebar = () => {
                 </span>
               )}
             </div>
-            <div className="hidden lg:block text-left min-w-0">
+            <div className={`text-left min-w-0 ${layout("block", "hidden lg:block")}`}>
               <div className="font-medium truncate">{user.fullName}</div>
               <div className="text-sm text-base-content/60">
                 {onlineUsers?.includes(user._id) ? "Online" : "Offline"}

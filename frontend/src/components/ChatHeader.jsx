@@ -1,10 +1,10 @@
-import { X } from "lucide-react";
+import { MessagesSquare, X } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
 import { BOT_DISPLAY_NAME } from "../constants";
 import BotAvatar from "./BotAvatar";
 
-const ChatHeader = ({ isBotChat = false }) => {
+const ChatHeader = ({ isBotChat = false, onOpenMessages }) => {
   const { selectedUser, setSelectedUser } = useChatStore();
   const { onlineUsers } = useAuthStore();
 
@@ -45,15 +45,29 @@ const ChatHeader = ({ isBotChat = false }) => {
           </div>
         </div>
 
-        {/* Close button */}
-        <button
-          onClick={() => setSelectedUser(null)}
-          className="btn btn-ghost btn-sm btn-circle shrink-0 text-primary-content hover:bg-primary-content/15"
-          aria-label="Close chat"
-          title="Close chat"
-        >
-          <X className="size-5" />
-        </button>
+        <div className="flex shrink-0 items-center gap-1">
+          {/* Mobile buyers: opens the contacts drawer (tablet and up use the assistant panel) */}
+          {onOpenMessages && (
+            <button
+              onClick={onOpenMessages}
+              className="btn btn-ghost btn-sm btn-circle text-primary-content hover:bg-primary-content/15 md:hidden"
+              aria-label="Messages"
+              title="Messages"
+            >
+              <MessagesSquare className="size-5" />
+            </button>
+          )}
+
+          {/* Close button */}
+          <button
+            onClick={() => setSelectedUser(null)}
+            className="btn btn-ghost btn-sm btn-circle text-primary-content hover:bg-primary-content/15"
+            aria-label="Close chat"
+            title="Close chat"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useChatStore } from "../store/useChatStore";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef } from "react";
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
@@ -46,7 +46,7 @@ const getStoreProductLinks = (text) => {
   return [...links.values()];
 };
 
-const ChatContainer = ({ embedMode = false }) => {
+const ChatContainer = ({ embedMode = false, onOpenMessages, pendingMessage, onPendingMessageSent }) => {
   const {
     messages,
     getMessages,
@@ -101,6 +101,18 @@ const ChatContainer = ({ embedMode = false }) => {
   const sendPresetMessage = (text) => {
     handleSendMessage(text).catch((error) => console.error("Failed to send message:", error));
   };
+
+  // A message queued outside the chat ("Talk to support" in the assistant panel) is sent the same way,
+  // once this chat's own messages have loaded, so it can't mix with the chat that was open before
+  const sendPendingMessage = useEffectEvent((text) => {
+    onPendingMessageSent?.();
+    if (isBotChat) sendPresetMessage(text);
+  });
+
+  useEffect(() => {
+    // Fresh store read: the effect above may have just started loading a newly selected chat
+    if (pendingMessage && !useChatStore.getState().isMessagesLoading) sendPendingMessage(pendingMessage);
+  }, [pendingMessage, isMessagesLoading]);
 
   const isBotMsg = (message) => message.isBot === true || message.senderId === "bot";
   const isMyMsg = (message) => message.senderId === authUser?._id && !message.isBot;
@@ -181,7 +193,7 @@ const ChatContainer = ({ embedMode = false }) => {
   return (
     <>
       <div className={chatColumnClassName}>
-        <ChatHeader isBotChat={isBotChat} />
+        <ChatHeader isBotChat={isBotChat} onOpenMessages={onOpenMessages} />
 
         {isMessagesLoading ? (
           <MessageSkeleton />

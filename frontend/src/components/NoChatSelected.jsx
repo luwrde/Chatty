@@ -1,16 +1,9 @@
-import { Headphones, MessageCircle, Package, ShoppingBag } from "lucide-react";
+import { MessageCircle, MessagesSquare } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
-import { BOT_DISPLAY_NAME } from "../constants";
+import { BOT_DISPLAY_NAME, BOT_FEATURES } from "../constants";
 import BotAvatar from "./BotAvatar";
 
-const FEATURES = [
-  { icon: ShoppingBag, title: "Shop smarter", text: "Product picks, prices and stock" },
-  { icon: Package, title: "Track your orders", text: "Order status and tracking help" },
-  { icon: Headphones, title: "Get support", text: "Type “admin” to reach a person" },
-  { icon: MessageCircle, title: "Just ask!", text: "Not only shopping, ask me anything" },
-];
-
-const NoChatSelected = () => {
+const NoChatSelected = ({ onOpenMessages }) => {
   const { users, setSelectedUser } = useChatStore();
   // Same contact embed mode opens for the bot chat
   const botChatUser = users.find((u) => u.role === "admin");
@@ -26,7 +19,7 @@ const NoChatSelected = () => {
         <p className="mt-1 text-sm text-base-content/60">I&apos;m here to help, especially with shopping.</p>
 
         <ul className="mt-6 w-full space-y-2 text-left">
-          {FEATURES.map((feature) => {
+          {BOT_FEATURES.map((feature) => {
             const Icon = feature.icon;
             return (
               <li key={feature.title} className="flex items-center gap-3 rounded-xl bg-base-200/70 p-3">
@@ -53,9 +46,17 @@ const NoChatSelected = () => {
           </button>
         )}
 
-        <p className="mt-4 text-sm text-base-content/50">
-          Select a conversation from the sidebar to start chatting
-        </p>
+        {/* Buyers: the contacts list is in the Messages drawer, not on screen */}
+        {onOpenMessages ? (
+          <button type="button" onClick={onOpenMessages} className="btn btn-ghost mt-2 w-full rounded-full text-primary">
+            <MessagesSquare className="size-5" aria-hidden="true" />
+            Messages
+          </button>
+        ) : (
+          <p className="mt-4 text-sm text-base-content/50">
+            Select a conversation from the sidebar to start chatting
+          </p>
+        )}
       </div>
     </div>
   );
