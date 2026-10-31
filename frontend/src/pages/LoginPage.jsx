@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { MessageSquare, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
+import { MessageSquare, Mail, Lock, Eye, EyeOff, Loader2, ArrowRight } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
-import AuthImagePattern from "../components/AuthImagePattern.jsx";
 import toast from "react-hot-toast";
+import AuthProductShowcase from "../components/AuthProductShowcase.jsx";
 
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -44,24 +44,23 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2">
+    <main className="min-h-screen grid bg-base-100 pt-16 lg:grid-cols-2">
       {/* Left side - Form */}
-      <div className="flex flex-col justify-center items-center p-6 sm:p-12">
+      <div className="flex min-h-[calc(100svh-4rem)] flex-col justify-center items-center px-6 py-12 sm:px-12 lg:py-16">
         <div className="w-full max-w-md space-y-8">
           
           {/* LOGO */}
-          <div className="text-center mb-8">
-            <div className="flex flex-col items-center gap-2 group">
+          <div className="mb-10">
+            <div className="flex flex-col items-start gap-3">
               <div
-                className="size-12 rounded-xl bg-primary/10 flex items-center justify-center
-                group-hover:bg-primary/20 transition-colors"
+                className="mb-3 size-14 rounded-2xl bg-primary/10 flex items-center justify-center"
               >
                 <MessageSquare className="size-6 text-primary" />
               </div>
 
-              <h1 className="text-2xl font-bold mt-2">Welcome Back</h1>
-              <p className="text-base-content/60">
-                Sign in to your account
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Welcome back</h1>
+              <p className="text-base-content/65 sm:text-lg">
+                Sign in to continue your conversations.
               </p>
             </div>
           </div>
@@ -70,7 +69,7 @@ const LoginPage = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email Field */}
             <div className="form-control">
-              <label className="label">
+              <label className="label" htmlFor="login-email">
                 <span className="label-text font-medium">Email</span>
               </label>
 
@@ -81,7 +80,9 @@ const LoginPage = () => {
 
                 <input
                   type="email"
-                  className="input input-bordered w-full pl-10"
+                  id="login-email"
+                  autoComplete="username"
+                  className="input input-bordered h-14 rounded-xl w-full pl-11 focus:outline-primary"
                   placeholder="you@example.com"
                   value={formData.email}
                   onChange={(e) =>
@@ -94,7 +95,7 @@ const LoginPage = () => {
 
             {/* Password Field */}
             <div className="form-control">
-              <label className="label">
+              <label className="label" htmlFor="login-password">
                 <span className="label-text font-medium">Password</span>
               </label>
 
@@ -105,7 +106,9 @@ const LoginPage = () => {
 
                 <input
                   type={showPassword ? "text" : "password"}
-                  className="input input-bordered w-full pl-10 pr-10"
+                  id="login-password"
+                  autoComplete="current-password"
+                  className="input input-bordered h-14 rounded-xl w-full pl-11 pr-14 focus:outline-primary"
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) =>
@@ -116,7 +119,9 @@ const LoginPage = () => {
 
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  className="absolute inset-y-0 right-0 px-4 flex items-center rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
@@ -131,8 +136,9 @@ const LoginPage = () => {
             {/* Submit Button */}
             <button
               type="submit"
-              className="btn btn-primary w-full flex items-center justify-center gap-2"
+              className="btn btn-primary h-14 rounded-xl w-full flex items-center justify-center gap-3 text-base shadow-soft"
               disabled={isLoggingIn}
+              aria-busy={isLoggingIn}
             >
               {isLoggingIn ? (
                 <>
@@ -140,7 +146,7 @@ const LoginPage = () => {
                   Signing In...
                 </>
               ) : (
-                "Sign In"
+                <>Sign In <ArrowRight className="size-5" aria-hidden="true" /></>
               )}
             </button>
           </form>
@@ -157,12 +163,8 @@ const LoginPage = () => {
         </div>
       </div>
 
-      {/* Right side - Using AuthImagePattern */}
-      <AuthImagePattern 
-        title="Welcome Back"
-        subtitle="Reconnect with friends and continue your conversations."
-      />
-    </div>
+      <AuthProductShowcase />
+    </main>
   );
 };
 

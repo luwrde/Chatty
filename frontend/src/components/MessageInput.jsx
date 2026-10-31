@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Send, Image as ImageIcon, Smile, Sparkles } from "lucide-react";
+import { Send, Image as ImageIcon, Smile } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
 
 // Small built-in emoji list (no picker package)
@@ -10,7 +10,7 @@ const EMOJIS = [
   "❤️", "💜", "✅", "🛍️", "📦", "🚚",
 ];
 
-const MessageInput = ({ onSendMessage, inputRef }) => {
+const MessageInput = ({ onSendMessage, inputRef, placeholder = "Type a message..." }) => {
   const [text, setText] = useState("");
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -113,32 +113,31 @@ const MessageInput = ({ onSendMessage, inputRef }) => {
         </div>
       )}
 
-      <div className="flex items-center gap-1 rounded-full border border-base-300 bg-base-100 py-1.5 pl-3 pr-1.5 shadow-sm transition-colors focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15">
-        <Sparkles className="size-4 shrink-0 text-primary" aria-hidden="true" />
+      <div className="flex items-center gap-1 rounded-full border border-base-300 bg-base-100 py-1.5 pl-1.5 pr-1.5 shadow-sm transition-colors focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15">
+        <label
+          className="btn btn-ghost btn-sm btn-circle shrink-0 text-base-content/60 hover:text-primary focus-within:ring-2 focus-within:ring-primary/30"
+          title="Attach an image"
+        >
+          <ImageIcon className="size-5" aria-hidden="true" />
+          <input
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            aria-label="Attach an image"
+            onChange={handleImageChange}
+          />
+        </label>
 
         <input
           ref={inputRef}
           type="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Type a message..."
+          placeholder={placeholder}
           aria-label="Message"
-          className="min-w-0 flex-1 bg-transparent px-1.5 text-sm outline-none placeholder:text-base-content/40"
+          className="min-w-0 flex-1 bg-transparent px-1.5 text-sm outline-none placeholder:text-base-content/60"
           disabled={!selectedUser}
         />
-
-        <label
-          className="btn btn-ghost btn-sm btn-circle shrink-0 text-base-content/60 hover:text-primary"
-          title="Attach an image"
-        >
-          <ImageIcon className="size-5" />
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleImageChange}
-          />
-        </label>
 
         <div ref={emojiMenuRef} className="relative shrink-0">
           <button

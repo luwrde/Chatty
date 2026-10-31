@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import cloudinary from "../lib/cloudinary.js";
 
 export const signup = async (req,res) => {
-   const { fullName, email, password, role } = req.body; // ADDED role
+   const { fullName, email, password } = req.body;
     try {
 
     if (!fullName || !email || !password){
@@ -23,11 +23,11 @@ export const signup = async (req,res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
     
+    // Always a regular account, whatever role the request sends: admins are added in the admin console
     const newUser = new User({
         fullName,
         email,
         password: hashedPassword,
-        role: role || "user" // ADDED - default role is "user"
     });
 
     if(newUser) {
@@ -57,12 +57,12 @@ export const login = async (req,res) => {
         const user = await User.findOne({ email });
 
         if(!user) {
-            return res.status(400).json({ message: "Invalid credentials" });
+            return res.status(400).json({ message: "Username or password is incorrect." });
         }
 
         const isPasswordCorrect = await bcrypt.compare(password, user.password);
         if(!isPasswordCorrect){
-            return res.status(400).json({ message: "Invalid credentials" });
+            return res.status(400).json({ message: "Username or password is incorrect." });
         }
         generateToken(user._id, res);
 

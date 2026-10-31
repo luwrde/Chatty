@@ -1,20 +1,33 @@
-import { MessagesSquare, X } from "lucide-react";
+import { Headphones, MessagesSquare } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
 import { BOT_DISPLAY_NAME } from "../constants";
 import BotAvatar from "./BotAvatar";
 
-const ChatHeader = ({ isBotChat = false, onOpenMessages }) => {
-  const { selectedUser, setSelectedUser } = useChatStore();
+// onOpenChats: phones only, opens the chat list. onTalkToSupport: the bot chat's one way to reach a person.
+const ChatHeader = ({ isBotChat = false, onOpenChats, onTalkToSupport }) => {
+  const { selectedUser } = useChatStore();
   const { onlineUsers } = useAuthStore();
 
   // The bot is always online; other chats use the existing online status
   const isOnline = isBotChat || onlineUsers.includes(selectedUser._id);
 
   return (
-    <div className="px-4 py-3 bg-gradient-to-r from-primary to-primary/85 text-primary-content">
+    <div className="bg-primary px-3 py-3 text-primary-content sm:px-4">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          {onOpenChats && (
+            <button
+              type="button"
+              onClick={onOpenChats}
+              className="btn btn-ghost btn-sm btn-circle shrink-0 text-primary-content hover:bg-primary-content/15 md:hidden"
+              aria-label="All chats"
+              title="All chats"
+            >
+              <MessagesSquare className="size-5" />
+            </button>
+          )}
+
           {/* Avatar */}
           {isBotChat ? (
             <BotAvatar className="size-10 bg-base-100 text-primary shadow-sm" iconClassName="size-6" />
@@ -31,43 +44,29 @@ const ChatHeader = ({ isBotChat = false, onOpenMessages }) => {
             <h3 className="font-semibold leading-tight truncate">
               {isBotChat ? BOT_DISPLAY_NAME : selectedUser.fullName}
             </h3>
-            <p className="text-xs text-primary-content/80 flex items-center gap-1.5 min-w-0">
+            <p className="text-xs flex items-center gap-1.5 min-w-0">
               <span
                 className={`size-2 shrink-0 rounded-full ${isOnline ? "bg-success" : "bg-primary-content/40"}`}
                 aria-hidden="true"
               />
               <span className="truncate">
-                {isOnline ? "Online" : "Offline"}
-                {/* Bot chat: messages still go to this contact, so keep their name visible */}
-                {isBotChat && ` · Support: ${selectedUser.fullName}`}
+                {isBotChat ? "Online · AI shopping assistant" : isOnline ? "Online" : "Offline"}
               </span>
             </p>
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
-          {/* Mobile buyers: opens the contacts drawer (tablet and up use the assistant panel) */}
-          {onOpenMessages && (
-            <button
-              onClick={onOpenMessages}
-              className="btn btn-ghost btn-sm btn-circle text-primary-content hover:bg-primary-content/15 md:hidden"
-              aria-label="Messages"
-              title="Messages"
-            >
-              <MessagesSquare className="size-5" />
-            </button>
-          )}
-
-          {/* Close button */}
+        {onTalkToSupport && (
           <button
-            onClick={() => setSelectedUser(null)}
-            className="btn btn-ghost btn-sm btn-circle text-primary-content hover:bg-primary-content/15"
-            aria-label="Close chat"
-            title="Close chat"
+            type="button"
+            onClick={onTalkToSupport}
+            className="btn btn-sm shrink-0 gap-2 rounded-full border border-primary-content bg-transparent text-primary-content hover:border-primary-content hover:bg-primary-content/15"
+            title="Talk to a person"
           >
-            <X className="size-5" />
+            <Headphones className="size-4" aria-hidden="true" />
+            <span className="sr-only sm:not-sr-only">Talk to a person</span>
           </button>
-        </div>
+        )}
       </div>
     </div>
   );

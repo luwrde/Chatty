@@ -1,22 +1,13 @@
 import { useEffect, useState } from "react";
 import { Package } from "lucide-react";
 import { axiosInstance } from "../lib/axios";
+import { getProductImageUrl as getImageUrl } from "../lib/utils";
 
 // Product details by id from the store feed, shared by all cards so each product is fetched once
 const productCache = new Map();
 
 const pickCached = (idsKey) =>
   Object.fromEntries(idsKey.split(",").filter((id) => productCache.has(id)).map((id) => [id, productCache.get(id)]));
-
-// Same rule as the store's own pages: the feed has a file name, the file lives in uploads/ next to user-home.php
-const getImageUrl = (product) => {
-  if (!product.image) return null;
-  try {
-    return /^https?:\/\//i.test(product.image) ? product.image : new URL(`uploads/${product.image}`, product.link).href;
-  } catch {
-    return null;
-  }
-};
 
 const STOCK_LABELS = {
   "In Stock": { className: "text-success", text: () => "In Stock" },

@@ -45,3 +45,28 @@ export const optionalAuth = async (req, res, next) => {
         res.status(500).json({ message: "Internal server error" });
     }
 };
+
+// Use after protectRoute: only admins (support and sellers) get through
+export const adminOnly = (req, res, next) => {
+    if (req.user?.role !== "admin") {
+        return res.status(403).json({ message: "Forbidden - Admins only" });
+    }
+    next();
+};
+
+// Same check for socket connections: the jwt cookie sent with the handshake, or null.
+// The userId in the socket query is chosen by the client, so it can't be trusted for private data.
+export const getUserIdFromCookieHeader = (cookieHeader) => {
+    const token = cookieHeader
+        ?.split(";")
+        .map((part) => part.trim())
+        .find((part) => part.startsWith("jwt="))
+        ?.slice("jwt=".length);
+    if (!token) return null;
+
+    try {
+        return String(jwt.verify(decodeURIComponent(token), process.env.JWT_SECRET).userId);
+    } catch {
+        return null;
+    }
+};

@@ -1,64 +1,62 @@
-import { Link } from "react-router-dom";
-import { MessageSquare, Settings, User, LogOut, Shield } from "lucide-react";
+import { Link, NavLink } from "react-router-dom";
+import { MessageSquare, Settings } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore.js";
+import { ADMIN_TABS, BUYER_TABS } from "../constants";
+import AccountMenu from "./AccountMenu";
 
+// One tab per module: buyers get Assistant, Store, Orders and Help Center (on phones these move
+// to the bottom tab bar), admins get Chats and Console. Profile, Settings and Log out are in the account menu.
 const Navbar = () => {
-    const { logout, authUser } = useAuthStore();
-
-    // Check if user is admin
-    const isAdmin = authUser?.email === "admin@gmail.com" || authUser?.role === "admin";
+  const { authUser } = useAuthStore();
+  const isAdmin = authUser?.role === "admin";
+  const tabs = isAdmin ? ADMIN_TABS : BUYER_TABS;
 
   return (
-    <header
-     className="bg-base-100 border-b border-base-300/70 fixed w-full top-0 z-40
-     backdrop-blur-lg bg-base-100/80 shadow-sm"
-     >
-      <div className="container mx-auto px-4 h-16">
-        <div className="flex items-center justify-between h-full">
-          <Link to= "/" className="flex items-center gap-2.5 hover:opacity-80 transition-all">
+    <header className="fixed top-0 z-40 w-full border-b border-base-300/70 bg-base-100/80 shadow-sm backdrop-blur-lg">
+      <div className="container mx-auto flex h-16 items-center justify-between gap-3 px-4">
+        <Link to="/" className="flex shrink-0 items-center gap-2.5 transition-all hover:opacity-80">
           <div className="size-9 rounded-xl bg-primary text-primary-content flex items-center justify-center shadow-soft">
-          <MessageSquare className="w-5 h-5" />
+            <MessageSquare className="w-5 h-5" />
           </div>
-          <h1 className="text-lg font-bold">Chatty</h1>
-          </Link>
+          <span className="text-lg font-bold">Chatty</span>
+        </Link>
 
-        <div className="flex items-center gap-1 sm:gap-2">
-          {/* ADMIN LINK - Only show for admin users */}
-          {isAdmin && (
-            <Link
-              to={"/admin"}
-              className="btn btn-sm gap-2 rounded-full transition-colors btn-outline btn-primary"
-              >
-                <Shield className="w-4 h-4" />
-                <span className="hidden sm:inline">Admin</span>
-              </Link>
-          )}
+        {authUser && (
+          <nav aria-label="Main" className={`items-center gap-1 ${isAdmin ? "flex" : "hidden md:flex"}`}>
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <NavLink
+                  key={tab.to}
+                  to={tab.to}
+                  end={tab.end}
+                  className={({ isActive }) =>
+                    `btn btn-sm gap-2 rounded-full border-0 ${
+                      isActive ? "bg-primary/10 text-primary hover:bg-primary/15" : "btn-ghost font-medium text-base-content/75"
+                    }`
+                  }
+                >
+                  <Icon className="size-4" aria-hidden="true" />
+                  {/* Admins' tabs show only icons on the smallest screens */}
+                  <span className={isAdmin ? "sr-only sm:not-sr-only" : undefined}>{tab.label}</span>
+                </NavLink>
+              );
+            })}
+          </nav>
+        )}
 
-          <Link
-            to={"/settings"}
-            className="btn btn-sm btn-ghost gap-2 rounded-full transition-colors"
-            >
-              <Settings className="w-4 h-4" />
-              <span className="hidden sm:inline">Settings</span>
+        <div className="flex shrink-0 items-center">
+          {authUser ? (
+            <AccountMenu />
+          ) : (
+            <Link to="/settings" className="btn btn-sm btn-ghost gap-2 rounded-full">
+              <Settings className="w-4 h-4" aria-hidden="true" />
+              <span className="sr-only sm:not-sr-only">Settings</span>
             </Link>
-
-            { authUser && (
-              <>
-              <Link to={"/profile"} className="btn btn-sm btn-ghost gap-2 rounded-full">
-              <User className="size-5" />
-              <span className="hidden sm:inline">Profile</span>
-              </Link>
-
-              <button className="btn btn-sm btn-ghost gap-2 rounded-full" onClick={logout}>
-                <LogOut className="size-5" />
-                <span className="hidden sm:inline">Logout</span>
-                </button>
-                </>
-            )}
-        </div>
+          )}
         </div>
       </div>
-     </header>
+    </header>
   );
 };
 

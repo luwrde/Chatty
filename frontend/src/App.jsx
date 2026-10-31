@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 import { Loader } from "lucide-react";
 
 import Navbar         from "./components/Navbar";
+import MobileTabBar   from "./components/MobileTabBar";
 import EmbedAuth      from "./components/EmbedAuth";
 import HomePage       from "./pages/HomePage";
 import SignUpPage     from "./pages/SignUpPage";
@@ -11,6 +12,9 @@ import LoginPage      from "./pages/LoginPage";
 import ProfilePage    from "./pages/ProfilePage";
 import SettingsPage   from "./pages/SettingsPage";
 import AdminDashboard from "./pages/AdminDashboard";
+import StorePage      from "./pages/StorePage";
+import OrdersPage     from "./pages/OrdersPage";
+import HelpPage       from "./pages/HelpPage";
 
 import { useAuthStore }  from "./store/useAuthStore";
 import { useThemeStore } from "./store/useThemeStore";
@@ -55,7 +59,17 @@ const App = () => {
         <Route path="/profile"  element={authUser ? <ProfilePage />  : <Navigate to="/login" />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/admin"    element={authUser?.role === "admin" ? <AdminDashboard /> : <Navigate to="/" />} />
+        <Route path="/store"    element={authUser ? <StorePage />    : <Navigate to="/login" />} />
+        <Route path="/orders"   element={authUser ? <OrdersPage />   : <Navigate to="/login" />} />
+        <Route path="/help"     element={authUser ? <HelpPage />     : <Navigate to="/login" />} />
       </Routes>
+      {/* Buyers on phones: the modules as a bottom tab bar, with space under each page so nothing hides behind it */}
+      {authUser && authUser.role !== "admin" && (
+        <>
+          <div className="h-16 md:hidden" aria-hidden="true" />
+          <MobileTabBar />
+        </>
+      )}
       <Toaster />
     </div>
   );

@@ -1,16 +1,17 @@
 import { useChatStore } from "../store/useChatStore";
 import { useCallback, useEffect, useEffectEvent, useRef } from "react";
+import { ShieldCheck } from "lucide-react";
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import BotAvatar from "./BotAvatar";
 import ProductCards from "./ProductCards";
 import QuickReplies from "./QuickReplies";
-import QuickActionsPanel from "./QuickActionsPanel";
+import ChatCard from "./ChatCards";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
 import { useSocketContext } from "../context/SocketContext";
-import { BOT_DISPLAY_NAME } from "../constants";
+import { BOT_DISPLAY_NAME, FOLLOW_UP_PROMPTS, STARTER_PROMPTS, SUPPORT_REQUEST_TEXT } from "../constants";
 
 const URL_PATTERN = /https?:\/\/[^\s]+/g;
 const PRODUCT_ID_PATTERN = /[?&]id=(\d+)/; // store links: user-home.php?id=123
@@ -46,7 +47,9 @@ const getStoreProductLinks = (text) => {
   return [...links.values()];
 };
 
-const ChatContainer = ({ embedMode = false, onOpenMessages, pendingMessage, onPendingMessageSent }) => {
+const isBotMsg = (message) => message.isBot === true || message.senderId === "bot";
+
+const ChatContainer = ({ embedMode = false, onOpenChats, pendingMessage, onPendingMessageSent }) => {
   const {
     messages,
     getMessages,
@@ -61,8 +64,8 @@ const ChatContainer = ({ embedMode = false, onOpenMessages, pendingMessage, onPe
   const messageEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  // The bot chat is the support chat embed mode opens: the chat with the admin contact
-  const isBotChat = embedMode || selectedUser?.role === "admin";
+  // The bot answers only in the support contact's chat (the chat embed mode opens). Seller chats are people only.
+  const isBotChat = embedMode || Boolean(selectedUser?.isSupport);
 
   useEffect(() => {
     if (selectedUser?._id) {
@@ -80,20 +83,21 @@ const ChatContainer = ({ embedMode = false, onOpenMessages, pendingMessage, onPe
     scrollToBottom();
   }, [messages, botTyping, isMessagesLoading, scrollToBottom]);
 
-  // Saves the message, then emits the socket event the bot answers.
-  // Used by the message input, the quick replies and the quick actions.
+  // Saves the message; in the bot chat it also emits the socket event the bot answers.
+  // Used by the message input, the suggestions and "Talk to a person".
   const handleSendMessage = async (text, image = null) => {
     if (!selectedUser) return;
-    await sendMessage({ text, image });
+    const message = await sendMessage({ text, image });
 
-    // EMIT TO SOCKET FOR BOT
-    if (socket && authUser) {
+    // EMIT TO SOCKET FOR BOT: it answers in the chat the message was saved in (not when it couldn't be sent)
+    if (isBotChat && message && socket && authUser) {
       console.log("Emitting sendMessage for bot:", text);
       socket.emit("sendMessage", {
         text:      text || "📷 Sent an image",
         senderId:  authUser._id,
         receiverId: selectedUser._id,
         hasImage:  !!image,   // ← NEW: tell socket if image was sent
+        conversationId: message.conversationId,
       });
     }
   };
@@ -102,7 +106,10 @@ const ChatContainer = ({ embedMode = false, onOpenMessages, pendingMessage, onPe
     handleSendMessage(text).catch((error) => console.error("Failed to send message:", error));
   };
 
-  // A message queued outside the chat ("Talk to support" in the assistant panel) is sent the same way,
+  // Sends a phrase the server already treats as a support request
+  const talkToSupport = () => sendPresetMessage(SUPPORT_REQUEST_TEXT);
+
+  // A message queued outside the chat ("Ask AI" on another page) is sent the same way,
   // once this chat's own messages have loaded, so it can't mix with the chat that was open before
   const sendPendingMessage = useEffectEvent((text) => {
     onPendingMessageSent?.();
@@ -114,8 +121,12 @@ const ChatContainer = ({ embedMode = false, onOpenMessages, pendingMessage, onPe
     if (pendingMessage && !useChatStore.getState().isMessagesLoading) sendPendingMessage(pendingMessage);
   }, [pendingMessage, isMessagesLoading]);
 
-  const isBotMsg = (message) => message.isBot === true || message.senderId === "bot";
   const isMyMsg = (message) => message.senderId === authUser?._id && !message.isBot;
+
+  // First visit: a greeting with starter suggestions. Later: one suggestion row that follows the last bot card.
+  const showWelcome = isBotChat && !isMessagesLoading && messages.length === 0;
+  const lastBotMessage = [...messages].reverse().find(isBotMsg);
+  const followUps = FOLLOW_UP_PROMPTS[lastBotMessage?.card?.type] ?? FOLLOW_UP_PROMPTS.default;
 
   const renderLinks = (text, keyPrefix, linkClassName) => {
     const tokens = [];
@@ -191,110 +202,146 @@ const ChatContainer = ({ embedMode = false, onOpenMessages, pendingMessage, onPe
     : "flex-1 min-w-0 flex flex-col overflow-hidden rounded-box border border-base-300/60 bg-base-100 shadow-soft";
 
   return (
-    <>
-      <div className={chatColumnClassName}>
-        <ChatHeader isBotChat={isBotChat} onOpenMessages={onOpenMessages} />
+    <div className={chatColumnClassName}>
+      <ChatHeader
+        isBotChat={isBotChat}
+        onOpenChats={onOpenChats}
+        onTalkToSupport={isBotChat ? talkToSupport : undefined}
+      />
 
-        {isMessagesLoading ? (
-          <MessageSkeleton />
-        ) : (
-          <div className="flex-1 overflow-y-auto px-3 py-5 sm:px-5 space-y-4">
-            {messages.map((message, index) => {
-              const isBot = isBotMsg(message);
-              const isMine = isMyMsg(message);
-              const productLinks = isBot && message.text ? getStoreProductLinks(message.text) : [];
+      {isMessagesLoading ? (
+        <MessageSkeleton />
+      ) : (
+        <div className="flex-1 overflow-y-auto px-3 py-5 sm:px-5 space-y-4">
+          {isBotChat && (
+            <p className="flex items-center justify-center gap-1.5 text-center text-xs text-base-content/70">
+              <ShieldCheck className="size-3.5 shrink-0" aria-hidden="true" />
+              Messages are saved and can be read by EcommerSense support.
+            </p>
+          )}
 
-              return (
-                <div
-                  key={message._id || index}
-                  className={`flex items-start gap-2 ${isMine ? "flex-row-reverse" : ""}`}
-                >
-                  {isBot ? (
-                    <BotAvatar />
-                  ) : (
-                    <img
-                      src={
-                        isMine
-                          ? authUser.profilePic || "/avatar.png"
-                          : selectedUser?.profilePic || "/avatar.png"
-                      }
-                      alt="profile pic"
-                      className="size-8 shrink-0 rounded-full object-cover ring-1 ring-base-300"
+          {showWelcome && (
+            <div className="mx-auto flex max-w-md flex-col items-center px-2 py-6 text-center">
+              <BotAvatar className="size-16 bg-primary/10 text-primary ring-8 ring-primary/5" iconClassName="size-8" />
+              <h2 className="mt-5 text-xl font-bold">Hi, I&apos;m {BOT_DISPLAY_NAME}</h2>
+              <p className="mt-1 text-sm text-base-content/70">Ask about products, prices, your orders, or anything else.</p>
+              <div className="mt-6 grid w-full grid-cols-2 gap-2">
+                {STARTER_PROMPTS.map((prompt) => {
+                  const Icon = prompt.icon;
+                  return (
+                    <button
+                      key={prompt.text}
+                      type="button"
+                      onClick={() => sendPresetMessage(prompt.text)}
+                      className="flex min-h-12 items-center gap-2 rounded-xl border border-base-300 bg-base-100 px-3 text-left text-sm font-semibold transition-colors hover:border-primary/40 hover:bg-primary/5"
+                    >
+                      <Icon className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                      {prompt.text}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {messages.map((message, index) => {
+            const isBot = isBotMsg(message);
+            const isMine = isMyMsg(message);
+            const productLinks = isBot && message.text ? getStoreProductLinks(message.text) : [];
+
+            return (
+              <div
+                key={message._id || index}
+                className={`flex items-start gap-2 ${isMine ? "flex-row-reverse" : ""}`}
+              >
+                {isBot ? (
+                  <BotAvatar />
+                ) : (
+                  <img
+                    src={
+                      isMine
+                        ? authUser.profilePic || "/avatar.png"
+                        : selectedUser?.profilePic || "/avatar.png"
+                    }
+                    alt="profile pic"
+                    className="size-8 shrink-0 rounded-full object-cover ring-1 ring-base-300"
+                  />
+                )}
+
+                <div className={`flex min-w-0 flex-1 flex-col ${isMine ? "items-end" : "items-start"}`}>
+                  <div
+                    className={`flex max-w-[85%] sm:max-w-[75%] flex-col rounded-2xl px-3.5 py-2.5 text-sm shadow-sm ${
+                      isMine
+                        ? "rounded-tr-md bg-primary text-primary-content"
+                        : "rounded-tl-md bg-base-200 text-base-content"
+                    }`}
+                  >
+                    {message.image && (
+                      <img
+                        src={message.image}
+                        alt="Attachment"
+                        className={`sm:max-w-[200px] rounded-xl ${message.text ? "mb-2" : ""}`}
+                      />
+                    )}
+                    {message.text && (
+                      <p className="whitespace-pre-wrap break-words">
+                        {renderText(message.text, {
+                          bold: isBot,
+                          linkClassName: `underline underline-offset-2 break-all ${isMine ? "text-primary-content" : "text-primary"}`,
+                        })}
+                      </p>
+                    )}
+                  </div>
+
+                  {isBot && message.card && <ChatCard card={message.card} embedMode={embedMode} />}
+
+                  {productLinks.length > 0 && (
+                    <ProductCards
+                      links={productLinks}
+                      onView={openProductLink}
+                      onMoreOptions={(name) => sendPresetMessage(`Show me other options similar to ${name}`)}
+                      onLoad={scrollToBottom}
                     />
                   )}
 
-                  <div className={`flex min-w-0 flex-1 flex-col ${isMine ? "items-end" : "items-start"}`}>
-                    <div
-                      className={`flex max-w-[85%] sm:max-w-[75%] flex-col rounded-2xl px-3.5 py-2.5 text-sm shadow-sm ${
-                        isMine
-                          ? "rounded-tr-md bg-primary text-primary-content"
-                          : "rounded-tl-md bg-base-200 text-base-content"
-                      }`}
-                    >
-                      {message.image && (
-                        <img
-                          src={message.image}
-                          alt="Attachment"
-                          className={`sm:max-w-[200px] rounded-xl ${message.text ? "mb-2" : ""}`}
-                        />
-                      )}
-                      {message.text && (
-                        <p className="whitespace-pre-wrap break-words">
-                          {renderText(message.text, {
-                            bold: isBot,
-                            linkClassName: `underline underline-offset-2 break-all ${isMine ? "text-primary-content" : "text-primary"}`,
-                          })}
-                        </p>
-                      )}
-                    </div>
-
-                    {productLinks.length > 0 && (
-                      <ProductCards
-                        links={productLinks}
-                        onView={openProductLink}
-                        onMoreOptions={(name) => sendPresetMessage(`Show me other options similar to ${name}`)}
-                        onLoad={scrollToBottom}
-                      />
+                  <div className="mt-1 px-1 text-[11px] text-base-content/70">
+                    {!isMine && (
+                      <span className="font-medium">
+                        {isBot ? BOT_DISPLAY_NAME : selectedUser?.fullName || "User"} ·{" "}
+                      </span>
                     )}
-
-                    <div className="mt-1 px-1 text-[11px] text-base-content/50">
-                      {!isMine && (
-                        <span className="font-medium">
-                          {isBot ? BOT_DISPLAY_NAME : selectedUser?.fullName || "User"} ·{" "}
-                        </span>
-                      )}
-                      <time>{formatMessageTime(message.createdAt)}</time>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-
-            {botTyping && (
-              <div className="flex items-start gap-2">
-                <BotAvatar />
-                <div className="rounded-2xl rounded-tl-md bg-base-200 px-4 py-3 shadow-sm" aria-label={`${BOT_DISPLAY_NAME} is typing`}>
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-base-content/40 rounded-full animate-bounce" style={{ animationDelay: "0s" }}></div>
-                    <div className="w-2 h-2 bg-base-content/40 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
-                    <div className="w-2 h-2 bg-base-content/40 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
+                    <time>{formatMessageTime(message.createdAt)}</time>
                   </div>
                 </div>
               </div>
-            )}
-            <div ref={messageEndRef} />
-          </div>
-        )}
+            );
+          })}
 
-        {isBotChat && <QuickReplies onSelect={sendPresetMessage} />}
-        <MessageInput onSendMessage={handleSendMessage} inputRef={inputRef} />
-      </div>
-
-      {/* Bot chat on wide screens: contacts | chat | quick actions (embed mode keeps chat only) */}
-      {isBotChat && !embedMode && (
-        <QuickActionsPanel onSelect={sendPresetMessage} onAskAnything={() => inputRef.current?.focus()} />
+          {botTyping && (
+            <div className="flex items-start gap-2">
+              <BotAvatar />
+              <div className="rounded-2xl rounded-tl-md bg-base-200 px-4 py-3 shadow-sm" aria-label={`${BOT_DISPLAY_NAME} is typing`}>
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-base-content/40 rounded-full animate-bounce" style={{ animationDelay: "0s" }}></div>
+                  <div className="w-2 h-2 bg-base-content/40 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                  <div className="w-2 h-2 bg-base-content/40 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={messageEndRef} />
+        </div>
       )}
-    </>
+
+      {isBotChat && !showWelcome && !isMessagesLoading && (
+        <QuickReplies suggestions={followUps} onSelect={sendPresetMessage} embedMode={embedMode} />
+      )}
+      <MessageInput
+        onSendMessage={handleSendMessage}
+        inputRef={inputRef}
+        placeholder={isBotChat ? "Ask about products, orders or anything else" : "Type a message..."}
+      />
+    </div>
   );
 };
 

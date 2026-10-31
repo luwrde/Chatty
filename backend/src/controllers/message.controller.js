@@ -1,16 +1,13 @@
+import mongoose from "mongoose";
 import User from "../models/user.model.js";
 import Message from "../models/message.model.js";
 import cloudinary from "../lib/cloudinary.js";
-import { getReceiverSocketId, io } from "../lib/socket.js";
-import mysql from "mysql2/promise";
-
-// ── MySQL connection to ecommerce DB ──────────────────────────────────────
-const ecommerceDB = mysql.createPool({
-  host:     "localhost",
-  user:     "root",
-  password: "",
-  database: "ecommerse_db",
-});
+import { getReceiverSocketId, io, sendBotReply, setChatList } from "../lib/socket.js";
+import {
+  findConversation, getLatestConversation, getSupportContact, startConversation, touchConversation,
+} from "../lib/conversations.js";
+import { storeDb as ecommerceDB } from "../lib/store.js";
+import { getOrderSellerEmails } from "../lib/storeOrders.js";
 
 // ── Notify ecommerce admin ─────────────────────────────────────────────────
 async function notifyEcommerceAdmin(senderName, messageText) {
@@ -130,53 +127,92 @@ function formatImageSearchResults(tags, products, isExact) {
   return msg;
 }
 
-// ── Send bot message helper ────────────────────────────────────────────────
-async function sendBotMessage(receiverId, text) {
-  try {
-    const adminUser   = await User.findOne({ role: "admin" });
-    const botSenderId = adminUser ? adminUser._id : receiverId;
+// ── Bot: a photo in the assistant's chat gets similar products, saved in the same chat ──
+function replyToPhoto(userId, conversationId, imageUrl) {
+  setTimeout(async () => {
+    try {
+      const socketId = getReceiverSocketId(String(userId));
+      if (socketId) io.to(socketId).emit("botTyping", true);
 
-    const botMessage = new Message({
-      senderId:   botSenderId,
-      receiverId: receiverId,
-      text:       text,
-      isBot:      true,
-    });
-    await botMessage.save();
+      const { tags, products, isExact } = await analyzeImageAndFindProducts(imageUrl);
+      const botReply = formatImageSearchResults(tags, products, isExact);
 
-    const socketId = getReceiverSocketId(receiverId.toString());
-    if (socketId) {
-      io.to(socketId).emit("newMessage", botMessage);
-    } else {
-      io.emit("newMessage", botMessage);
+      if (socketId) io.to(socketId).emit("botTyping", false);
+      await sendBotReply(socketId, userId, conversationId, botReply);
+    } catch (err) {
+      console.error("Image bot error:", err.message);
     }
-  } catch (err) {
-    console.error("sendBotMessage error:", err.message);
-  }
+  }, 1500);
 }
 
 // ── CONTROLLERS ────────────────────────────────────────────────────────────
 
+// Everyone this user has sent a message to or received one from
+async function getChatPartnerIds(userId) {
+  const [sentTo, receivedFrom] = await Promise.all([
+    Message.distinct("receiverId", { senderId: userId }),
+    Message.distinct("senderId", { receiverId: userId }),
+  ]);
+  return [...sentTo, ...receivedFrom].filter((id) => mongoose.isValidObjectId(id));
+}
+
+// Only what the chat list shows: whatever the page receives can be read in the browser's dev tools,
+// so no emails or account dates
+const CHAT_LIST_FIELDS = "fullName profilePic role";
+
+// Admins (support and sellers) see everyone, so they can answer buyers.
+// Buyers only see support, people they already chat with, and the stores they ordered from.
+// isSupport marks the support contact, whose chat is the one the bot answers in.
 export const getUsersForSidebar = async (req, res) => {
   try {
-    const loggedInUserId = req.user._id;
-    const filteredUsers = await User.find({ _id: { $ne: loggedInUserId } }).select("-password");
-    res.status(200).json(filteredUsers);
+    const me = req.user;
+    const support = await getSupportContact();
+    const isSupport = (user) => Boolean(support && user._id.equals(support._id));
+
+    if (me.role === "admin") {
+      const users = await User.find({ _id: { $ne: me._id } }).select(CHAT_LIST_FIELDS).sort({ createdAt: 1 });
+      return res.status(200).json(users.map((user) => ({ ...user.toObject(), isSupport: isSupport(user) })));
+    }
+
+    const [partnerIds, sellerEmails] = await Promise.all([
+      getChatPartnerIds(me._id),
+      // The store database may be offline; the list still loads without the stores
+      getOrderSellerEmails(me.email).catch((error) => {
+        console.log("Store sellers unavailable for chats:", error.message);
+        return [];
+      }),
+    ]);
+    const users = await User.find({
+      _id: { $ne: me._id },
+      $or: [
+        { _id: { $in: [support?._id, ...partnerIds].filter(Boolean) } },
+        { email: { $in: sellerEmails } },
+      ],
+    })
+      .collation({ locale: "en", strength: 2 }) // store and chat emails may differ in case
+      .select(CHAT_LIST_FIELDS)
+      .sort({ createdAt: 1 });
+    // Their sockets get online statuses for these people only
+    setChatList(String(me._id), users.map((user) => user._id));
+    res.status(200).json(users.map((user) => ({ ...user.toObject(), isSupport: isSupport(user) })));
   } catch (error) {
     console.error("Error in getUsersForSidebar: ", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
+// A chat with one person: what each sent the other. (The assistant's chats load per chat: routes/conversation.route.js)
 export const getMessages = async (req, res) => {
   try {
     const { id: userToChatId } = req.params;
+    if (!mongoose.isValidObjectId(userToChatId)) return res.status(404).json({ message: "User not found" });
     const myId = req.user._id;
+    // senderId can hold "bot", so Mongoose doesn't cast it: a string id there would match nothing
+    const otherId = new mongoose.Types.ObjectId(userToChatId);
     const messages = await Message.find({
       $or: [
-        { senderId: myId, receiverId: userToChatId },
-        { senderId: userToChatId, receiverId: myId },
-        { receiverId: myId, isBot: true },
+        { senderId: myId, receiverId: otherId },
+        { senderId: otherId, receiverId: myId },
       ],
     }).sort({ createdAt: 1 });
     res.status(200).json(messages);
@@ -186,40 +222,31 @@ export const getMessages = async (req, res) => {
   }
 };
 
+// conversationId: in the assistant's chat, the chat the user has open (none: the message starts a new chat)
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image } = req.body;
+    const { text, image, conversationId } = req.body;
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
+
+    // Chats with the support contact are the assistant's, kept apart in each user's Chat history.
+    // The user's messages go into the chat they have open; support's replies go into the user's latest chat.
+    const support = await getSupportContact();
+    const isToAssistant = Boolean(support?._id.equals(receiverId)) && !support._id.equals(senderId);
+    let conversation = null;
+    if (isToAssistant && conversationId) {
+      conversation = await findConversation(senderId, conversationId);
+      if (!conversation) return res.status(404).json({ message: "Chat not found" });
+    }
 
     let imageUrl;
     if (image) {
       const uploadResponse = await cloudinary.uploader.upload(image);
       imageUrl = uploadResponse.secure_url;
-
-      // ── Bot: analyze image and find similar products ──────────────────
-      console.log("Image received! Analyzing...");
-      setTimeout(async () => {
-        try {
-          const senderSocketId = getReceiverSocketId(senderId.toString());
-          if (senderSocketId) {
-            io.to(senderSocketId).emit("botTyping", true);
-          }
-
-          const { tags, products, isExact } = await analyzeImageAndFindProducts(imageUrl);
-          const botReply = formatImageSearchResults(tags, products, isExact);
-
-          if (senderSocketId) {
-            io.to(senderSocketId).emit("botTyping", false);
-          }
-
-          await sendBotMessage(senderId, botReply);
-        } catch (err) {
-          console.error("Image bot error:", err.message);
-        }
-      }, 1500);
-      // ─────────────────────────────────────────────────────────────────
     }
+
+    if (isToAssistant) conversation ??= await startConversation(senderId, text);
+    else if (support?._id.equals(senderId)) conversation = await getLatestConversation(receiverId, text);
 
     // Save user message
     const newMessage = new Message({
@@ -227,8 +254,16 @@ export const sendMessage = async (req, res) => {
       receiverId,
       text,
       image: imageUrl,
+      conversationId: conversation?._id,
     });
     await newMessage.save();
+    if (conversation) await touchConversation(conversation._id, newMessage.createdAt);
+
+    // ── Bot: analyze image and find similar products (the assistant's chat only) ──
+    if (imageUrl && isToAssistant) {
+      console.log("Image received! Analyzing...");
+      replyToPhoto(senderId, conversation._id, imageUrl);
+    }
 
     // Send to receiver via socket
     const receiverSocketId = getReceiverSocketId(receiverId);

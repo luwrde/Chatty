@@ -77,8 +77,8 @@ export const useAuthStore = create((set, get) => ({
   connectSocket: () => {
     const { authUser } = get();
     if (!authUser || get().socket?.connected) return;
-    const isAdmin = authUser.role === "admin";
-    const socket  = io(BASE_URL, { query: { userId: authUser._id, isAdmin: isAdmin.toString() } });
+    // withCredentials sends the jwt cookie: the server knows who this is from it, not from anything the page sends
+    const socket  = io(BASE_URL, { withCredentials: true });
     socket.connect();
     set({ socket });
     socket.on("getOnlineUsers", (userIds) => set({ onlineUsers: userIds }));

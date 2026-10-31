@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 
-// Left drawer for the contacts list (Messages). It stays mounted while closed,
-// so the list still loads with the page; inert keeps it out of reach until opened.
+// Left drawer for the chat list on phones. It stays mounted while closed;
+// inert keeps it out of reach until opened.
 const ContactsDrawer = ({ open, onClose, children }) => {
   const closeButtonRef = useRef(null);
 
@@ -27,7 +27,7 @@ const ContactsDrawer = ({ open, onClose, children }) => {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Messages"
+        aria-label="Chats"
         className={`absolute inset-y-0 left-0 w-80 max-w-[85vw] bg-base-100 shadow-2xl transition-transform duration-200 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
@@ -38,7 +38,7 @@ const ContactsDrawer = ({ open, onClose, children }) => {
           type="button"
           onClick={onClose}
           className="btn btn-ghost btn-sm btn-circle absolute right-3 top-4"
-          aria-label="Close messages"
+          aria-label="Close chats"
         >
           <X className="size-5" />
         </button>
